@@ -116,7 +116,7 @@
         <a href="/shelter_search" {% if request.endpoint == 'shelter_search' %}aria-current="page"{% endif %}>避難所検索</a>
         <a href="/all_shelters" {% if request.endpoint in ('all_shelters', 'search_results') %}aria-current="page"{% endif %}>全避難所一覧</a>
         {% if session.logged_in %}
-          <a href="/shelter_management" {% if request.endpoint in ('shelter_management', 'shelter_register', 'edit_shelter') %}aria-current="page"{% endif %}>避難所管理</a>
+          <a href="/shelter_management" {% if request.endpoint in ('shelter_management', 'shelter_register', 'edit_shelter') %}aria-current="page"{% endif %}>避難所登録</a>
           <a href="/board" {% if request.endpoint == 'board' %}aria-current="page"{% endif %}>指示・発信ボード</a>
         {% endif %}
         {% if session.logged_in %}

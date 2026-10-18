@@ -100,6 +100,16 @@ class ApplicationFlowTests(unittest.TestCase):
         response = self.client.get('/shelter_register')
         self.assertEqual(response.status_code, 200)
         self.assertIn('value="open" selected', response.data.decode())
+        for example in (
+            '例：青森市立中央小学校',
+            '例：中央地区',
+            '例：青森市中央1丁目1-1',
+            '例：300',
+            '例：25',
+            '例：非常用発電機、毛布、飲料水を備蓄',
+            '例：中央小学校、青森市中央1丁目'
+        ):
+            self.assertIn(example.encode(), response.data)
 
     def test_edit_persists_values_and_keeps_legacy_fields(self):
         self.log_in()

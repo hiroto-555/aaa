@@ -55,13 +55,13 @@
   <div class="register-card">
     <form class="register-form" method="post"{% if is_edit %} action="{{ url_for('edit_shelter', shelter_id=shelter_id) }}"{% endif %}>
       <label class="register-field" for="name">避難所名（必須）
-        <input type="text" id="name" name="name" required maxlength="200" value="{{ form.get('name', '') }}">
+        <input type="text" id="name" name="name" required maxlength="200" value="{{ form.get('name', '') }}" placeholder="例：青森市立中央小学校">
       </label>
       <label class="register-field" for="district">地区
-        <input type="text" id="district" name="district" value="{{ form.get('district', '') }}">
+        <input type="text" id="district" name="district" value="{{ form.get('district', '') }}" placeholder="例：中央地区">
       </label>
       <label class="register-field" for="address">住所
-        <input type="text" id="address" name="address" value="{{ form.get('address', '') }}">
+        <input type="text" id="address" name="address" value="{{ form.get('address', '') }}" placeholder="例：青森市中央1丁目1-1">
       </label>
       <fieldset class="register-fieldset">
         <legend>地図上の位置</legend>
@@ -69,7 +69,7 @@
         <div class="location-search">
           <div class="location-search__row">
             <label class="register-field" for="location-query">施設名または住所
-              <input type="search" id="location-query" placeholder="施設名・住所を入力">
+              <input type="search" id="location-query" placeholder="例：中央小学校、青森市中央1丁目">
             </label>
             <label class="register-field" for="location-prefecture">都道府県
               <input type="text" id="location-prefecture" value="{{ prefecture }}">
@@ -85,18 +85,18 @@
         <div id="locationMap" class="location-map" role="application" aria-label="避難所の位置を指定する地図"></div>
         <div class="register-options">
           <label class="register-field" for="latitude">緯度
-            <input type="number" id="latitude" name="latitude" min="-90" max="90" step="any" value="{{ form.get('latitude', '') }}">
+            <input type="number" id="latitude" name="latitude" min="-90" max="90" step="any" value="{{ form.get('latitude', '') }}" placeholder="例：40.8246">
           </label>
           <label class="register-field" for="longitude">経度
-            <input type="number" id="longitude" name="longitude" min="-180" max="180" step="any" value="{{ form.get('longitude', '') }}">
+            <input type="number" id="longitude" name="longitude" min="-180" max="180" step="any" value="{{ form.get('longitude', '') }}" placeholder="例：140.7406">
           </label>
         </div>
       </fieldset>
       <label class="register-field" for="capacity">収容人数（人）
-        <input type="number" id="capacity" name="capacity" min="0" step="1" value="{{ form.get('capacity', '') }}">
+        <input type="number" id="capacity" name="capacity" min="0" step="1" value="{{ form.get('capacity', '') }}" placeholder="例：300">
       </label>
       <label class="register-field" for="current_occupancy">現在の避難者数（人）
-        <input type="number" id="current_occupancy" name="current_occupancy" min="0" step="1" value="{{ form.get('current_occupancy', '') }}">
+        <input type="number" id="current_occupancy" name="current_occupancy" min="0" step="1" value="{{ form.get('current_occupancy', '') }}" placeholder="例：25">
       </label>
       <label class="register-field" for="opening_status">開設状況
         <select id="opening_status" name="opening_status">
@@ -127,7 +127,7 @@
       </fieldset>
 
       <label class="register-field" for="facilities">設備（自由記述）
-        <textarea id="facilities" name="facilities" maxlength="1000">{{ form.get('facilities', '') }}</textarea>
+        <textarea id="facilities" name="facilities" maxlength="1000" placeholder="例：非常用発電機、毛布、飲料水を備蓄">{{ form.get('facilities', '') }}</textarea>
       </label>
       <button class="register-submit" type="submit">{% if is_edit %}変更を保存{% else %}避難所を登録{% endif %}</button>
     </form>

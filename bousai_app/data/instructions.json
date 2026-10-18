@@ -1,5 +1,53 @@
 [
   {
+    "id": 9,
+    "target": "住民",
+    "district": "市内全域",
+    "content": "aaaaa",
+    "simple_content": "aaaa",
+    "shelter": "御所見小学校",
+    "urgency": "高",
+    "status": "未対応",
+    "created_at": "2026年10月18日 15:40",
+    "updated_at": "2026年10月18日 15:40"
+  },
+  {
+    "id": 8,
+    "target": "消防団本部",
+    "district": "片瀬地区",
+    "content": "ｆｆｒがえｒ",
+    "simple_content": "えqｆf2g",
+    "shelter": "NTT2",
+    "urgency": "低",
+    "status": "未対応",
+    "created_at": "2026年10月18日 15:39",
+    "updated_at": "2026年10月18日 15:39"
+  },
+  {
+    "id": 7,
+    "target": "住民",
+    "district": "村岡地区",
+    "content": "１１１１",
+    "simple_content": "１１１１１",
+    "shelter": "御所見小学校",
+    "urgency": "中",
+    "status": "未対応",
+    "created_at": "2026年10月18日 15:37",
+    "updated_at": "2026年10月18日 15:37"
+  },
+  {
+    "id": 6,
+    "target": "防災課",
+    "district": "市内全域",
+    "content": "１",
+    "simple_content": "１",
+    "shelter": "",
+    "urgency": "高",
+    "status": "未対応",
+    "created_at": "2026年10月18日 15:36",
+    "updated_at": "2026年10月18日 15:36"
+  },
+  {
     "id": 5,
     "target": "防災課",
     "district": "大阪",
@@ -16,9 +64,9 @@
     "target": "住民",
     "content": "B避難所へ避難してください",
     "shelter": "片瀬小学校",
-    "status": "解除",
+    "status": "未対応",
     "created_at": "2026年07月14日 18:38",
-    "updated_at": "2026年10月18日 12:20"
+    "updated_at": "2026年10月18日 15:37"
   },
   {
     "id": 3,

@@ -68,5 +68,26 @@
     "wheelchair_accessible": true,
     "parking": false,
     "id": 11
+  },
+  {
+    "name": "２２２",
+    "district": "２２２",
+    "address": "２２２",
+    "capacity": 2,
+    "current_occupancy": 2,
+    "hazards": [
+      "津波"
+    ],
+    "opening_status": "closed",
+    "latitude": 2.0,
+    "longitude": 2.0,
+    "equipment": [
+      "barrier_free"
+    ],
+    "facilities": "2",
+    "pet_allowed": false,
+    "wheelchair_accessible": true,
+    "parking": true,
+    "id": 12
   }
 ]

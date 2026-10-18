@@ -3,23 +3,273 @@
 {% block title %}指示・発信ボード - 防災アプリ{% endblock %}
 
 {% block content %}
-<h2>発信ボード</h2>
-<p>住民向けの発信を登録・確認できます。</p>
+<div class="board-page">
+  <header class="board-heading">
+    <div>
+      <p class="board-eyebrow">防災情報管理</p>
+      <h1>指示・発信ボード</h1>
+    </div>
+    <span class="board-count">{{ instructions|length }}件</span>
+  </header>
 
-<!-- 発信一覧 -->
-<h3>発信一覧</h3>
-{% if instructions %}
-<table border="1" cellpadding="5">
-  <tr>
-    <th>内容</th>
-  </tr>
-  {% for inst in instructions %}
-  <tr>
-    <td>{{ inst.content }}{% if inst.shelter %}（避難先: {{ inst.shelter }}）{% endif %}</td>
-  </tr>
-  {% endfor %}
-</table>
-{% else %}
-<p>登録されている指示はありません。</p>
-{% endif %}
+  {% if message %}
+  <p class="board-message{% if error %} board-message--error{% endif %}" role="status">{{ message }}</p>
+  {% endif %}
+
+  <section class="compose-panel" aria-labelledby="compose-title">
+    <div class="section-heading">
+      <h2 id="compose-title">新しい指示を登録</h2>
+    </div>
+    <form method="post" id="instructionForm" class="instruction-form">
+      <input type="hidden" name="action" value="create">
+      <div class="form-grid">
+        <label class="field">
+          <span>宛先</span>
+          <select name="target" required>
+            <option value="住民">住民</option>
+            <option value="防災課">防災課</option>
+            <option value="消防団本部">消防団本部</option>
+            <option value="道路管理課">道路管理課</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>対象地区</span>
+          <select name="district" required>
+            {% for district in districts %}
+            <option value="{{ district }}">{{ district }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field">
+          <span>避難先</span>
+          <select name="shelter">
+            <option value="">指定なし</option>
+            {% for shelter in shelters %}
+            <option value="{{ shelter.name }}">{{ shelter.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <fieldset class="field urgency-field">
+          <legend>緊急度</legend>
+          <div class="urgency-options">
+            <label class="urgency-choice urgency-choice--high"><input type="radio" name="urgency" value="高" required><span>高</span></label>
+            <label class="urgency-choice urgency-choice--medium"><input type="radio" name="urgency" value="中"><span>中</span></label>
+            <label class="urgency-choice urgency-choice--low"><input type="radio" name="urgency" value="低"><span>低</span></label>
+          </div>
+        </fieldset>
+        <label class="field field--wide">
+          <span>指示内容</span>
+          <textarea name="content" rows="3" maxlength="500" required placeholder="具体的な指示を入力"></textarea>
+        </label>
+        <label class="field field--wide">
+          <span>やさしい日本語（任意）</span>
+          <textarea name="simple_content" rows="2" maxlength="500" placeholder="短く、わかりやすい表現"></textarea>
+        </label>
+      </div>
+      <div class="form-actions">
+        <p>宛先を「住民」にするとホーム画面にも掲載されます。</p>
+        <button type="submit" class="primary-button"><span aria-hidden="true">✓</span> 入力内容を確認</button>
+      </div>
+    </form>
+  </section>
+
+  <dialog id="instructionPreview" class="preview-dialog" aria-labelledby="preview-title">
+    <form method="dialog" class="preview-dialog__close-form">
+      <button class="preview-close" type="submit" aria-label="閉じる">×</button>
+    </form>
+    <h2 id="preview-title">発信内容の確認</h2>
+    <p class="preview-intro">内容を確認してから登録してください。</p>
+    <dl class="preview-details">
+      <div><dt>宛先</dt><dd id="previewTarget"></dd></div>
+      <div><dt>対象地区</dt><dd id="previewDistrict"></dd></div>
+      <div><dt>避難先</dt><dd id="previewShelter"></dd></div>
+      <div><dt>緊急度</dt><dd id="previewUrgency"></dd></div>
+      <div class="preview-details__message"><dt>指示内容</dt><dd id="previewContent"></dd></div>
+      <div class="preview-details__message"><dt>やさしい日本語</dt><dd id="previewSimpleContent"></dd></div>
+    </dl>
+    <div class="preview-actions">
+      <button id="editInstruction" type="button" class="secondary-button">修正する</button>
+      <button id="confirmInstruction" type="button" class="primary-button">この内容で登録</button>
+    </div>
+  </dialog>
+
+  <section class="history-section" aria-labelledby="history-title">
+    <div class="section-heading section-heading--history">
+      <div>
+        <h2 id="history-title">指示・発信履歴</h2>
+        <span class="history-count">{{ instructions|length }}件</span>
+      </div>
+      <div class="sort-controls" role="group" aria-label="履歴の並び替え">
+        <a href="{{ url_for('board', sort='newest') }}" class="sort-button{% if sort_order == 'newest' %} is-active{% endif %}"{% if sort_order == 'newest' %} aria-current="true"{% endif %}>新しい順</a>
+        <a href="{{ url_for('board', sort='urgency') }}" class="sort-button{% if sort_order == 'urgency' %} is-active{% endif %}"{% if sort_order == 'urgency' %} aria-current="true"{% endif %}>緊急度順</a>
+      </div>
+    </div>
+    {% if instructions %}
+    <div class="instruction-list">
+      {% for inst in instructions %}
+      <article class="instruction-item">
+        <div class="instruction-item__top">
+          <div class="instruction-tags">
+            <span class="target-tag">{{ inst.target }}</span>
+            {% if inst.district %}<span class="subtle-tag">{{ inst.district }}</span>{% endif %}
+            <span class="urgency-tag urgency-tag--{{ {'高': 'high', '中': 'medium', '低': 'low'}.get(inst.urgency, 'low') }}">緊急度 {{ inst.urgency or '低' }}</span>
+            {% if inst.target == '住民' and inst.status not in ('完了', '解除') %}<span class="published-tag">ホーム掲載中</span>{% endif %}
+          </div>
+          <time>{{ inst.created_at or '日時不明' }}</time>
+        </div>
+        <p class="instruction-content">{{ inst.content }}</p>
+        {% if inst.simple_content %}<p class="simple-content"><span>やさしい日本語</span>{{ inst.simple_content }}</p>{% endif %}
+        {% if inst.shelter %}<p class="shelter-detail">避難先：{{ inst.shelter }}</p>{% endif %}
+        <form method="post" class="status-form">
+          <input type="hidden" name="action" value="update_status">
+          <input type="hidden" name="instruction_id" value="{{ inst.id }}">
+          <span class="status-label">対応状況</span>
+          <select name="status" aria-label="{{ inst.content }} の対応状況">
+            {% for status in ('未対応', '対応中', '完了', '解除') %}
+            <option value="{{ status }}" {% if (inst.status or '未対応') == status %}selected{% endif %}>{{ status }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="secondary-button">更新</button>
+        </form>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">指示・発信履歴はありません。</p>
+    {% endif %}
+  </section>
+</div>
+
+<style>
+  .board-page { display: grid; gap: 24px; color: var(--ink); }
+  .board-heading, .section-heading, .instruction-item__top, .form-actions, .status-form { display: flex; align-items: center; }
+  .board-heading { justify-content: space-between; }
+  .board-eyebrow { margin: 0 0 3px; color: var(--muted); font-size: 12px; }
+  .board-heading h1 { margin: 0; color: var(--blue-dark); font-size: 25px; }
+  .board-count, .section-heading--history > span { color: var(--muted); font-size: 13px; }
+  .compose-panel { padding: 22px 24px; border: 1px solid var(--line); border-radius: 8px; background: #f9fbfc; }
+  .section-heading { justify-content: space-between; margin-bottom: 17px; }
+  .section-heading h2 { margin: 0; color: var(--blue-dark); font-size: 18px; }
+  .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px 18px; }
+  .field { display: grid; min-width: 0; gap: 6px; margin: 0; padding: 0; border: 0; }
+  .field > span, .field legend { color: #536675; font-size: 13px; font-weight: 600; }
+  .field input:not([type="radio"]), .field select, .field textarea, .status-form select {
+    width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid #ccd7df; border-radius: 5px;
+    background: #fff; color: var(--ink); font: inherit; font-size: 14px;
+  }
+  .field textarea { resize: vertical; }
+  .field input:focus, .field select:focus, .field textarea:focus, .status-form select:focus { outline: 2px solid #8db4e4; outline-offset: 1px; }
+  .field--wide { grid-column: 1 / -1; }
+  .urgency-options { display: flex; gap: 7px; }
+  .urgency-choice { position: relative; cursor: pointer; }
+  .urgency-choice input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .urgency-choice span { display: grid; min-width: 56px; min-height: 40px; padding: 5px 12px; place-items: center; border: 1px solid #cbd6de; border-radius: 5px; background: #fff; color: #536675; }
+  .urgency-choice input:checked + span { border-color: currentColor; box-shadow: inset 0 0 0 1px currentColor; }
+  .urgency-choice input:focus-visible + span { outline: 2px solid #8db4e4; outline-offset: 2px; }
+  .urgency-choice--high span { color: #b94242; }
+  .urgency-choice--medium span { color: #a16a16; }
+  .urgency-choice--low span { color: #47815c; }
+  .form-actions { justify-content: space-between; gap: 16px; margin-top: 18px; }
+  .form-actions p { margin: 0; color: var(--muted); font-size: 12px; }
+  .primary-button, .secondary-button { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 5px; cursor: pointer; font: inherit; font-weight: 600; }
+  .primary-button { padding: 8px 16px; background: var(--blue); color: #fff; }
+  .primary-button:hover { background: var(--blue-dark); }
+  .primary-button span { font-size: 19px; line-height: 1; }
+  .history-section { display: grid; gap: 12px; }
+  .section-heading--history { margin: 0; padding: 0 2px; gap: 12px; }
+  .section-heading--history h2 { margin-bottom: 2px; }
+  .history-count { color: var(--muted); font-size: 12px; }
+  .sort-controls { display: flex; gap: 5px; }
+  .sort-button { display: inline-flex; min-height: 36px; align-items: center; padding: 5px 11px; border: 1px solid #cbd6df; border-radius: 5px; background: #fff; color: #536675; font-size: 12px; text-decoration: none; }
+  .sort-button:hover { background: #f0f5fa; }
+  .sort-button.is-active { border-color: var(--blue); background: #edf3fb; color: var(--blue-dark); font-weight: 700; }
+  .instruction-list { display: grid; gap: 10px; }
+  .instruction-item { min-width: 0; padding: 16px 18px; border: 1px solid var(--line); border-left: 3px solid #90a7b8; border-radius: 6px; background: #fff; }
+  .instruction-item:has(.urgency-tag--high) { border-left-color: #c34a4a; }
+  .instruction-item__top { justify-content: space-between; gap: 12px; }
+  .instruction-item__top time { flex: 0 0 auto; color: var(--muted); font-size: 11px; }
+  .instruction-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .target-tag, .subtle-tag, .urgency-tag, .published-tag { display: inline-flex; min-height: 24px; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .target-tag { background: #eaf1fa; color: var(--blue-dark); }
+  .subtle-tag { background: #f0f3f5; color: #536675; }
+  .urgency-tag--high { background: #fff0ee; color: #b94242; }
+  .urgency-tag--medium { background: #fff6e8; color: #94600c; }
+  .urgency-tag--low { background: #edf6ef; color: #47815c; }
+  .published-tag { background: #eaf5ed; color: #32794d; }
+  .instruction-content { margin: 12px 0 6px; white-space: pre-wrap; overflow-wrap: anywhere; font-weight: 600; }
+  .simple-content { display: grid; gap: 3px; margin: 9px 0; padding: 9px 11px; border-radius: 5px; background: #f5f8fa; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .simple-content span { color: var(--muted); font-size: 11px; font-weight: 600; }
+  .shelter-detail { margin: 7px 0; color: #536675; font-size: 13px; }
+  .status-form { justify-content: flex-end; gap: 8px; margin-top: 12px; padding-top: 11px; border-top: 1px solid #edf0f2; }
+  .status-label { margin-right: auto; color: var(--muted); font-size: 12px; }
+  .status-form select { width: auto; min-width: 112px; min-height: 36px; padding: 5px 8px; font-size: 13px; }
+  .secondary-button { min-height: 36px; padding: 6px 13px; border: 1px solid #cbd6df; background: #fff; color: var(--blue-dark); font-size: 13px; }
+  .secondary-button:hover { background: #f0f5fa; }
+  .empty-state { margin: 0; padding: 28px; border: 1px dashed #cbd6df; border-radius: 6px; color: var(--muted); text-align: center; }
+  .board-message { margin: 0; padding: 11px 14px; border-radius: 5px; background: #eaf5ed; color: #32794d; }
+  .board-message--error { background: #fff0ee; color: #a63e3e; }
+  .preview-dialog { width: min(560px, calc(100% - 32px)); max-height: min(85vh, 760px); padding: 24px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); box-shadow: 0 18px 55px rgb(20 40 60 / 25%); }
+  .preview-dialog::backdrop { background: rgb(19 34 49 / 50%); }
+  .preview-dialog__close-form { display: flex; justify-content: flex-end; margin: -11px -11px 2px; }
+  .preview-close { width: 36px; height: 36px; border: 0; border-radius: 5px; background: transparent; color: var(--muted); cursor: pointer; font-size: 25px; }
+  .preview-close:hover { background: #f0f3f5; }
+  .preview-dialog h2 { margin: 0; color: var(--blue-dark); font-size: 20px; }
+  .preview-intro { margin: 5px 0 16px; color: var(--muted); font-size: 13px; }
+  .preview-details { display: grid; gap: 0; margin: 0; border-top: 1px solid var(--line); }
+  .preview-details > div { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .preview-details dt { color: var(--muted); font-size: 13px; }
+  .preview-details dd { min-width: 0; margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .preview-details__message dd { font-weight: 600; }
+  .preview-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+  @media (max-width: 650px) {
+    .board-page { gap: 18px; }
+    .board-heading h1 { font-size: 21px; }
+    .compose-panel { padding: 17px 15px; }
+    .form-grid { grid-template-columns: 1fr; gap: 13px; }
+    .field--wide { grid-column: auto; }
+    .form-actions { align-items: flex-start; flex-direction: column; }
+    .form-actions .primary-button { width: 100%; }
+    .instruction-item { padding: 14px 13px; }
+    .instruction-item__top { align-items: flex-start; flex-direction: column; gap: 7px; }
+    .section-heading--history { align-items: flex-start; flex-direction: column; }
+    .status-form { flex-wrap: wrap; }
+    .status-label { width: 100%; }
+    .preview-dialog { padding: 17px; }
+    .preview-details > div { grid-template-columns: 92px minmax(0, 1fr); gap: 8px; }
+    .preview-actions { flex-direction: column-reverse; }
+    .preview-actions button { width: 100%; }
+  }
+</style>
+<script>
+  const instructionForm = document.getElementById('instructionForm');
+  const instructionPreview = document.getElementById('instructionPreview');
+
+  instructionForm.addEventListener('submit', event => {
+    if (instructionForm.dataset.confirmed === 'true') {
+      delete instructionForm.dataset.confirmed;
+      return;
+    }
+
+    event.preventDefault();
+    if (!instructionForm.reportValidity()) return;
+
+    const formData = new FormData(instructionForm);
+    const selectedUrgency = instructionForm.querySelector('input[name="urgency"]:checked');
+    document.getElementById('previewTarget').textContent = formData.get('target');
+    document.getElementById('previewDistrict').textContent = formData.get('district');
+    document.getElementById('previewShelter').textContent = formData.get('shelter') || '指定なし';
+    document.getElementById('previewUrgency').textContent = selectedUrgency.value;
+    document.getElementById('previewContent').textContent = formData.get('content');
+    document.getElementById('previewSimpleContent').textContent = formData.get('simple_content') || '入力なし';
+    instructionPreview.showModal();
+  });
+
+  document.getElementById('editInstruction').addEventListener('click', () => instructionPreview.close());
+  document.getElementById('confirmInstruction').addEventListener('click', () => {
+    instructionForm.dataset.confirmed = 'true';
+    instructionPreview.close();
+    instructionForm.requestSubmit();
+  });
+</script>
 {% endblock %}

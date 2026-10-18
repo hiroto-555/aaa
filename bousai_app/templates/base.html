@@ -4,31 +4,146 @@
   <meta charset="utf-8">
   <title>{% block title %}防災アプリ{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --blue: #2456ad;
+      --blue-dark: #18478f;
+      --ink: #34424e;
+      --muted: #71808a;
+      --line: #e6ebef;
+      --green: #278b55;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #fff;
+      color: var(--ink);
+      font-family: 'Noto Sans JP', 'Yu Gothic', sans-serif;
+      font-size: 15px;
+      line-height: 1.65;
+    }
+
+    .site-header {
+      position: relative;
+      z-index: 1000;
+      height: 70px;
+      background: var(--blue);
+      box-shadow: 0 2px 8px rgb(20 51 91 / 15%);
+    }
+
+    .site-header__inner {
+      display: flex;
+      width: min(1384px, calc(100% - 48px));
+      height: 100%;
+      margin: 0 auto;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .site-brand {
+      color: #fff;
+      font-size: 23px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .menu-toggle {
+      display: grid;
+      width: 44px;
+      height: 44px;
+      padding: 10px;
+      place-items: center;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    .menu-toggle:hover, .menu-toggle[aria-expanded="true"] { background: rgb(255 255 255 / 14%); }
+    .menu-toggle svg { width: 24px; height: 24px; }
+
+    .site-menu {
+      position: absolute;
+      top: 60px;
+      right: max(24px, calc((100vw - 1384px) / 2));
+      display: grid;
+      min-width: 220px;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      box-shadow: 0 8px 24px rgb(28 46 64 / 16%);
+    }
+
+    .site-menu[hidden] { display: none; }
+    .site-menu a { padding: 9px 11px; border-radius: 4px; color: var(--ink); text-decoration: none; }
+    .site-menu a:hover { background: #edf3fb; color: var(--blue-dark); }
+    .site-menu__status { padding: 7px 11px; color: var(--muted); font-size: 12px; }
+
+    main { width: min(910px, calc(100% - 32px)); margin: 32px auto 56px; }
+
+    @media (max-width: 600px) {
+      .site-header { height: 62px; }
+      .site-header__inner { width: calc(100% - 32px); }
+      .site-brand { font-size: 20px; }
+      .site-menu { top: 54px; right: 16px; }
+      main { margin-top: 20px; }
+    }
+  </style>
 </head>
 <body>
-  <!-- ヘッダー -->
-  <h1>防災アプリ</h1>
-
-  <!-- ナビゲーション -->
-  <nav>
-    <a href="/">ホーム</a> |
-    <a href="/shelter_search">避難所検索</a> |
-    <a href="/shelter_register">避難所登録</a> |
-    <a href="/board">指示・発信ボード</a>
-    ｜
-    {% if session.logged_in %}
-      ログイン中{% if session.username %}（{{ session.username }}）{% endif %}
-      <a href="/logout">ログアウト</a>
-    {% else %}
-      未ログイン
-      <a href="/login">ログイン</a>
-    {% endif %}
-  </nav>
-  <hr>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="site-brand" href="/">防災アプリ</a>
+      <button id="menuToggle" class="menu-toggle" type="button" aria-label="メニューを開く" aria-expanded="false" aria-controls="siteMenu">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2.4" stroke-linecap="square" />
+        </svg>
+      </button>
+      <nav id="siteMenu" class="site-menu" aria-label="メインメニュー" hidden>
+        <a href="/">ホーム</a>
+        <a href="/shelter_search">避難所検索</a>
+        <a href="/shelter_register">避難所登録</a>
+        <a href="/board">指示・発信ボード</a>
+        {% if session.logged_in %}
+          <span class="site-menu__status">ログイン中{% if session.username %}（{{ session.username }}）{% endif %}</span>
+          <a href="/logout">ログアウト</a>
+        {% else %}
+          <span class="site-menu__status">未ログイン</span>
+          <a href="/login">ログイン</a>
+        {% endif %}
+      </nav>
+    </div>
+  </header>
 
   <main>
-    <!-- ここに子テンプレートの content が入る -->
     {% block content %}{% endblock %}
   </main>
+  <script>
+    const menuToggle = document.getElementById('menuToggle');
+    const siteMenu = document.getElementById('siteMenu');
+
+    menuToggle.addEventListener('click', () => {
+      const isExpanded = menuToggle.getAttribute('aria-expanded') === 'true';
+      menuToggle.setAttribute('aria-expanded', String(!isExpanded));
+      menuToggle.setAttribute('aria-label', isExpanded ? 'メニューを開く' : 'メニューを閉じる');
+      siteMenu.hidden = isExpanded;
+    });
+
+    document.addEventListener('click', event => {
+      if (!siteMenu.hidden && !siteMenu.contains(event.target) && !menuToggle.contains(event.target)) {
+        siteMenu.hidden = true;
+        menuToggle.setAttribute('aria-expanded', 'false');
+        menuToggle.setAttribute('aria-label', 'メニューを開く');
+      }
+    });
+  </script>
 </body>
 </html>

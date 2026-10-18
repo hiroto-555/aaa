@@ -1,12 +1,24 @@
 [
   {
+    "id": 5,
+    "target": "防災課",
+    "district": "大阪",
+    "content": "走って逃げよう",
+    "simple_content": "",
+    "shelter": "鵠洋小学校",
+    "urgency": "高",
+    "status": "未対応",
+    "created_at": "2026年10月18日 12:23",
+    "updated_at": "2026年10月18日 12:23"
+  },
+  {
     "id": 4,
     "target": "住民",
     "content": "B避難所へ避難してください",
     "shelter": "片瀬小学校",
     "status": "解除",
     "created_at": "2026年07月14日 18:38",
-    "updated_at": "2026年07月14日 18:38"
+    "updated_at": "2026年10月18日 12:20"
   },
   {
     "id": 3,
@@ -22,9 +34,9 @@
     "target": "住民",
     "content": "土砂災害の危険があるため避難してください",
     "shelter": "御所見小学校",
-    "status": "解除",
+    "status": "未対応",
     "created_at": "2026年07月14日 18:22",
-    "updated_at": "2026年07月14日 18:22"
+    "updated_at": "2026年10月18日 12:23"
   },
   {
     "id": 1,

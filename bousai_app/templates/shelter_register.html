@@ -1,23 +1,244 @@
 {% extends "base.html" %}
 
+{% block title %}{% if is_edit %}避難所情報の編集{% else %}避難所登録{% endif %} | 防災アプリ{% endblock %}
+{% block page_name %}{% if is_edit %}避難所情報の編集{% else %}避難所登録{% endif %}{% endblock %}
+
 {% block content %}
-<h2>避難所登録</h2>
-<p>新しい避難所情報を登録します。</p>
+<style>
+  .register-page { padding: 24px; border-radius: 12px; background: #f1f6fc; }
+  .register-page h1 { margin: 0; color: #18478f; font-size: 25px; }
+  .register-page__intro { margin: 6px 0 20px; color: #586b7b; }
+  .register-card { padding: 22px; border: 1px solid #e2eaf2; border-radius: 9px; background: #fff; }
+  .register-form { display: grid; gap: 16px; }
+  .register-field { display: grid; gap: 6px; color: #34424e; font-weight: 600; }
+  .register-field input, .register-field textarea, .register-field select { width: 100%; min-height: 44px; padding: 9px 11px; border: 1px solid #aab8c5; border-radius: 5px; background: #fff; font: inherit; font-weight: 400; }
+  .register-field textarea { min-height: 84px; resize: vertical; }
+  .register-field input:focus, .register-field textarea:focus, .register-field select:focus, .register-form input:focus-visible, .register-form button:focus-visible { outline: 3px solid #86b7f5; outline-offset: 2px; }
+  .register-fieldset { margin: 0; padding: 13px 15px; border: 1px solid #dce5ee; border-radius: 6px; }
+  .register-fieldset legend { padding: 0 5px; color: #34424e; font-weight: 700; }
+  .register-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; }
+  .register-option { display: inline-flex; min-height: 42px; align-items: center; gap: 8px; cursor: pointer; }
+  .register-option input { width: 19px; height: 19px; accent-color: #2456ad; }
+  .register-submit { min-height: 46px; padding: 9px 22px; border: 0; border-radius: 5px; background: #2456ad; color: #fff; cursor: pointer; font: inherit; font-weight: 700; }
+  .register-message { margin: 0 0 14px; padding: 12px 15px; border-radius: 6px; background: #e9f4ec; color: #215c32; }
+  .register-message--error { background: #fff0ef; color: #9a2f2b; }
+  .location-search { display: grid; gap: 12px; padding: 15px; border: 1px solid #dce5ee; border-radius: 6px; background: #f8fbfe; }
+  .location-search__row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .location-search__row .register-field:first-child { grid-column: 1 / -1; }
+  .location-search__submit { justify-self: start; min-height: 42px; padding: 7px 15px; border: 0; border-radius: 5px; background: #2456ad; color: #fff; cursor: pointer; font: inherit; font-weight: 600; }
+  .location-search__status { margin: 0; color: #536675; font-size: 13px; }
+  .location-search__results { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+  .location-search__results button { width: 100%; min-height: 46px; padding: 9px 11px; border: 1px solid #d6e0ea; border-radius: 5px; background: #fff; color: #34424e; cursor: pointer; font: inherit; text-align: left; }
+  .location-search__results button:hover { border-color: #2456ad; background: #f1f6fc; }
+  .location-map { height: 340px; border: 1px solid #dce5ee; border-radius: 6px; }
+  .location-search :focus-visible { outline: 3px solid #86b7f5; outline-offset: 2px; }
+  @media (max-width: 600px) {
+    .register-page { padding: 16px; }
+    .register-card { padding: 16px; }
+    .register-options { grid-template-columns: 1fr; }
+    .location-search__row { grid-template-columns: 1fr; }
+    .location-search__row .register-field:first-child { grid-column: auto; }
+    .location-map { height: 280px; }
+  }
+</style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<!-- 成功・エラーメッセージ表示 -->
-{% if success %}
-  <p>{{ message }}</p>
-{% endif %}
+<section class="register-page" aria-labelledby="register-title">
+  <h1 id="register-title">{% if is_edit %}避難所情報の編集{% else %}避難所登録{% endif %}</h1>
+  <p class="register-page__intro">避難所情報と利用できる設備を登録します。</p>
 
-{% if error %}
-  <p>{{ message }}</p>
-{% endif %}
+  {% if success or error %}
+  <p class="register-message{% if error %} register-message--error{% endif %}" role="{% if error %}alert{% else %}status{% endif %}">{{ message }}</p>
+  {% endif %}
 
-<form method="POST">
-  <p>
-    <label for="name">避難所名（必須）</label><br>
-    <input type="text" id="name" name="name">
-  </p>
-  <p><button type="submit">登録</button></p>
-</form>
+  <div class="register-card">
+    <form class="register-form" method="post"{% if is_edit %} action="{{ url_for('edit_shelter', shelter_id=shelter_id) }}"{% endif %}>
+      <label class="register-field" for="name">避難所名（必須）
+        <input type="text" id="name" name="name" required maxlength="200" value="{{ form.get('name', '') }}">
+      </label>
+      <label class="register-field" for="district">地区
+        <input type="text" id="district" name="district" value="{{ form.get('district', '') }}">
+      </label>
+      <label class="register-field" for="address">住所
+        <input type="text" id="address" name="address" value="{{ form.get('address', '') }}">
+      </label>
+      <fieldset class="register-fieldset">
+        <legend>地図上の位置</legend>
+        <p>地図をクリックするか、施設名・住所を検索して候補を選択してください。候補を選んだだけでは保存されません。</p>
+        <div class="location-search">
+          <div class="location-search__row">
+            <label class="register-field" for="location-query">施設名または住所
+              <input type="search" id="location-query" placeholder="施設名・住所を入力">
+            </label>
+            <label class="register-field" for="location-prefecture">都道府県
+              <input type="text" id="location-prefecture" value="{{ prefecture }}">
+            </label>
+            <label class="register-field" for="location-city">市区町村
+              <input type="text" id="location-city" value="{{ city }}">
+            </label>
+          </div>
+          <button type="button" id="searchLocation" class="location-search__submit">地名から候補を検索</button>
+          <p id="locationSearchStatus" class="location-search__status" role="status" aria-live="polite">地図をクリックして位置を指定できます。</p>
+          <ul id="locationCandidates" class="location-search__results"></ul>
+        </div>
+        <div id="locationMap" class="location-map" role="application" aria-label="避難所の位置を指定する地図"></div>
+        <div class="register-options">
+          <label class="register-field" for="latitude">緯度
+            <input type="number" id="latitude" name="latitude" min="-90" max="90" step="any" value="{{ form.get('latitude', '') }}">
+          </label>
+          <label class="register-field" for="longitude">経度
+            <input type="number" id="longitude" name="longitude" min="-180" max="180" step="any" value="{{ form.get('longitude', '') }}">
+          </label>
+        </div>
+      </fieldset>
+      <label class="register-field" for="capacity">収容人数（人）
+        <input type="number" id="capacity" name="capacity" min="0" step="1" value="{{ form.get('capacity', '') }}">
+      </label>
+      <label class="register-field" for="current_occupancy">現在の避難者数（人）
+        <input type="number" id="current_occupancy" name="current_occupancy" min="0" step="1" value="{{ form.get('current_occupancy', '') }}">
+      </label>
+      <label class="register-field" for="opening_status">開設状況
+        <select id="opening_status" name="opening_status">
+          <option value=""{% if not form.get('opening_status') %} selected{% endif %}>状態未登録</option>
+          {% for identifier, label in opening_status_options.items() %}
+          <option value="{{ identifier }}"{% if form.get('opening_status') == identifier %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <fieldset class="register-fieldset">
+        <legend>対応する災害</legend>
+        <div class="register-options">
+          {% for hazard in hazard_options %}
+          <label class="register-option"><input type="checkbox" name="hazards" value="{{ hazard }}"{% if hazard in selected_hazards %} checked{% endif %}>{{ hazard }}</label>
+          {% endfor %}
+        </div>
+      </fieldset>
+
+      <fieldset class="register-fieldset">
+        <legend>設備・対応項目</legend>
+        <div class="register-options">
+          {% for identifier, equipment in equipment_options.items() %}
+          <label class="register-option"><input type="checkbox" name="equipment" value="{{ identifier }}"{% if identifier in selected_equipment %} checked{% endif %}><span aria-hidden="true">{{ equipment[0] }}</span> {{ equipment[1] }}</label>
+          {% endfor %}
+          <label class="register-option"><input type="checkbox" name="parking" value="1"{% if form.get('parking') == '1' %} checked{% endif %}>駐車場あり</label>
+        </div>
+      </fieldset>
+
+      <label class="register-field" for="facilities">設備（自由記述）
+        <textarea id="facilities" name="facilities" maxlength="1000">{{ form.get('facilities', '') }}</textarea>
+      </label>
+      <button class="register-submit" type="submit">{% if is_edit %}変更を保存{% else %}避難所を登録{% endif %}</button>
+    </form>
+  </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const mapElement = document.getElementById('locationMap');
+  const latitudeInput = document.getElementById('latitude');
+  const longitudeInput = document.getElementById('longitude');
+  const status = document.getElementById('locationSearchStatus');
+  const results = document.getElementById('locationCandidates');
+  let map;
+  let selectedMarker;
+  let candidateMarkers = [];
+
+  function selectLocation(latitude, longitude) {
+    latitudeInput.value = latitude.toFixed(6);
+    longitudeInput.value = longitude.toFixed(6);
+    if (selectedMarker) selectedMarker.remove();
+    selectedMarker = L.marker([latitude, longitude]).addTo(map);
+    map.setView([latitude, longitude], Math.max(map.getZoom(), 15));
+    status.textContent = `位置を選択しました：${latitude.toFixed(6)}, ${longitude.toFixed(6)}（保存前）`;
+  }
+
+  if (!window.L) {
+    mapElement.textContent = '地図を読み込めません。緯度・経度を直接入力できます。';
+  } else {
+    map = L.map(mapElement).setView({{ map_center|tojson }}, 11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      referrerPolicy: 'strict-origin-when-cross-origin'
+    }).addTo(map);
+    map.on('click', event => selectLocation(event.latlng.lat, event.latlng.lng));
+    const existingLatitude = Number(latitudeInput.value);
+    const existingLongitude = Number(longitudeInput.value);
+    if (Number.isFinite(existingLatitude) && Number.isFinite(existingLongitude)
+        && existingLatitude >= -90 && existingLatitude <= 90
+        && existingLongitude >= -180 && existingLongitude <= 180
+        && latitudeInput.value !== '' && longitudeInput.value !== '') {
+      selectedMarker = L.marker([existingLatitude, existingLongitude]).addTo(map);
+      map.setView([existingLatitude, existingLongitude], 15);
+    }
+    map.whenReady(() => window.setTimeout(() => map.invalidateSize(), 0));
+  }
+
+  document.getElementById('searchLocation').addEventListener('click', async () => {
+    if (!window.L) {
+      status.textContent = '地図を読み込めないため、緯度・経度を直接入力してください。';
+      return;
+    }
+    const query = document.getElementById('location-query').value.trim();
+    const prefecture = document.getElementById('location-prefecture').value.trim();
+    const city = document.getElementById('location-city').value.trim();
+    if (!query || !prefecture || !city) {
+      status.textContent = '施設名または住所、都道府県、市区町村を入力してください。';
+      return;
+    }
+    status.textContent = '候補を検索しています…';
+    results.replaceChildren();
+    candidateMarkers.forEach(marker => marker.remove());
+    candidateMarkers = [];
+    try {
+      const response = await fetch('/api/geocode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+        body: new URLSearchParams({ query, prefecture, city })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || '地名検索に失敗しました。');
+      status.textContent = data.message || `検索元：${data.source}。地図上で候補を比較し、選択してください。`;
+      const bounds = [];
+      data.candidates.forEach((candidate, index) => {
+        const marker = L.circleMarker([candidate.latitude, candidate.longitude], {
+          radius: 9, color: '#fff', weight: 2, fillColor: '#2456ad', fillOpacity: 0.9
+        }).addTo(map);
+        const popup = document.createElement('div');
+        [candidate.name, candidate.address, candidate.distance_km === null
+          ? `検索地域：${prefecture}${city}`
+          : `検索地域から約${candidate.distance_km}km`, `検索元：${candidate.source}`].forEach(text => {
+          const line = document.createElement('p');
+          line.textContent = text;
+          popup.appendChild(line);
+        });
+        marker.bindPopup(popup);
+        marker.openPopup();
+        candidateMarkers.push(marker);
+        bounds.push([candidate.latitude, candidate.longitude]);
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        const distance = candidate.distance_km === null
+          ? '距離不明'
+          : `検索地域から約${candidate.distance_km}km`;
+        button.textContent = `${index + 1}. ${candidate.name} — ${candidate.address}（${distance}／${candidate.source}）`;
+        button.addEventListener('click', () => {
+          candidateMarkers.forEach(item => item.closePopup());
+          marker.openPopup();
+          selectLocation(candidate.latitude, candidate.longitude);
+        });
+        const listItem = document.createElement('li');
+        listItem.appendChild(button);
+        results.appendChild(listItem);
+      });
+      if (bounds.length > 1) map.fitBounds(bounds, { padding: [25, 25] });
+      else if (bounds.length === 1) map.setView(bounds[0], 16);
+    } catch (error) {
+      status.textContent = `${error.message} 地図クリックまたは緯度・経度の直接入力を利用できます。`;
+    }
+  });
+});
+</script>
 {% endblock %}

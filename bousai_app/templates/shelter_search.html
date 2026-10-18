@@ -1,8 +1,84 @@
 {% extends "base.html" %}
 
-{% block content %}
-<h2>避難所検索</h2>
-<p>登録されている避難所を確認できます。</p>
+{% block title %}避難所検索 | 防災アプリ{% endblock %}
 
-<p><a href="/all_shelters">全施設一覧</a></p>
+{% block content %}
+<style>
+  .shelter-page { padding: 24px; border-radius: 12px; background: #f1f6fc; }
+  .shelter-page h1 { margin: 0; color: #18478f; font-size: 25px; }
+  .shelter-intro { margin: 6px 0 20px; color: #586b7b; }
+  .shelter-card { padding: 22px; border: 1px solid #e2eaf2; border-radius: 9px; background: #fff; box-shadow: 0 3px 12px rgb(31 55 76 / 5%); }
+  .shelter-form { display: grid; gap: 18px; }
+  .shelter-field { display: grid; gap: 7px; min-width: 0; color: #34424e; font-weight: 600; }
+  .shelter-field input, .shelter-field select { width: 100%; min-height: 46px; padding: 9px 11px; border: 1px solid #aab8c5; border-radius: 5px; background: #fff; color: #263746; font: inherit; font-weight: 400; }
+  .shelter-field input:focus, .shelter-field select:focus, .shelter-check input:focus-visible, .shelter-actions a:focus-visible, .shelter-actions button:focus-visible { outline: 3px solid #86b7f5; outline-offset: 2px; }
+  .shelter-filters { display: grid; grid-template-columns: minmax(220px, 1fr); gap: 14px; align-items: end; }
+  .shelter-checks { display: flex; flex-wrap: wrap; gap: 12px 22px; }
+  .shelter-check { display: inline-flex; min-height: 44px; align-items: center; gap: 8px; cursor: pointer; }
+  .shelter-check input { width: 20px; height: 20px; accent-color: #2456ad; }
+  .shelter-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .shelter-actions button { min-height: 46px; padding: 9px 22px; border: 0; border-radius: 5px; background: #2456ad; color: #fff; cursor: pointer; font: inherit; font-weight: 700; }
+  .shelter-actions button:hover { background: #18478f; }
+  .shelter-actions a { min-height: 44px; display: inline-flex; align-items: center; color: #2456ad; }
+  .shelter-results { margin-top: 24px; }
+  @media (max-width: 680px) {
+    .shelter-page { padding: 16px; }
+    .shelter-card { padding: 16px; }
+    .shelter-filters { grid-template-columns: 1fr; gap: 12px; }
+    .shelter-checks { display: grid; grid-template-columns: 1fr; gap: 4px; }
+  }
+</style>
+
+<section class="shelter-page" aria-labelledby="shelter-search-title">
+  <h1 id="shelter-search-title">避難所検索</h1>
+  <p class="shelter-intro">避難所名・地区名・住所や対応条件から避難所を探せます。</p>
+
+  <div class="shelter-card">
+    <form class="shelter-form" method="get" action="{{ url_for('shelter_search') }}">
+      <label class="shelter-field" for="shelter-query">
+        避難所名・地区名・住所で検索
+        <input
+          type="search"
+          id="shelter-query"
+          name="q"
+          value="{{ options.q }}"
+          placeholder="例：小学校、中央地区"
+        >
+      </label>
+
+      <div class="shelter-filters">
+        <label class="shelter-field" for="district">地区
+          <input type="search" id="district" name="district" value="{{ options.district }}" list="district-options" placeholder="地区名で絞り込み">
+          <datalist id="district-options">
+            {% for district in districts %}<option value="{{ district }}">{% endfor %}
+          </datalist>
+        </label>
+        <label class="shelter-field" for="disaster">災害の種類
+          <select id="disaster" name="disaster">
+            <option value=""{% if not options.disaster %} selected{% endif %}>指定なし</option>
+            {% for hazard in hazard_options %}
+            <option value="{{ hazard }}"{% if options.disaster == hazard %} selected{% endif %}>{{ hazard }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+
+      <div class="shelter-checks" aria-label="避難所の対応条件">
+        <label class="shelter-check"><input type="checkbox" name="pet" value="1"{% if options.pet %} checked{% endif %}>ペット同伴可</label>
+        <label class="shelter-check"><input type="checkbox" name="wheelchair" value="1"{% if options.wheelchair %} checked{% endif %}>車椅子対応</label>
+        <label class="shelter-check"><input type="checkbox" name="parking" value="1"{% if options.parking %} checked{% endif %}>駐車場あり</label>
+      </div>
+
+      <div class="shelter-actions">
+        <button type="submit">検索</button>
+        <a href="{{ url_for('shelter_search') }}">条件をクリア</a>
+        <a href="{{ url_for('all_shelters') }}">全避難所一覧</a>
+      </div>
+    </form>
+  </div>
+
+  {% with return_to='shelter_search' %}
+    {% include '_shelter_results_table.html' %}
+  {% endwith %}
+</section>
 {% endblock %}

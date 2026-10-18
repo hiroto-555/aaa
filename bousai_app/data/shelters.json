@@ -26,5 +26,47 @@
   {
     "id": 9,
     "name": "HIROTO SUGIYAMA"
+  },
+  {
+    "name": "11",
+    "district": "1",
+    "address": "1",
+    "capacity": 1,
+    "current_occupancy": 1,
+    "hazards": [
+      "地震"
+    ],
+    "opening_status": "closed",
+    "latitude": 40.805473,
+    "longitude": 140.72319,
+    "equipment": [
+      "pet_allowed"
+    ],
+    "facilities": "q1",
+    "pet_allowed": true,
+    "wheelchair_accessible": false,
+    "parking": false,
+    "id": 10
+  },
+  {
+    "name": "1",
+    "district": "1",
+    "address": "11",
+    "capacity": 18,
+    "current_occupancy": 1,
+    "hazards": [
+      "地震"
+    ],
+    "opening_status": "open",
+    "latitude": 40.805473,
+    "longitude": 1.0,
+    "equipment": [
+      "barrier_free"
+    ],
+    "facilities": "1",
+    "pet_allowed": false,
+    "wheelchair_accessible": true,
+    "parking": false,
+    "id": 11
   }
 ]

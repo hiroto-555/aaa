@@ -53,6 +53,7 @@
       text-decoration: none;
     }
 
+    .site-page-name { margin: 0 auto 0 18px; color: #fff; font-size: 15px; font-weight: 600; }
     .menu-toggle {
       display: grid;
       width: 44px;
@@ -85,6 +86,7 @@
     .site-menu[hidden] { display: none; }
     .site-menu a { padding: 9px 11px; border-radius: 4px; color: var(--ink); text-decoration: none; }
     .site-menu a:hover { background: #edf3fb; color: var(--blue-dark); }
+    .site-menu a[aria-current="page"] { background: #e7effa; color: var(--blue-dark); font-weight: 700; }
     .site-menu__status { padding: 7px 11px; color: var(--muted); font-size: 12px; }
 
     main { width: min(910px, calc(100% - 32px)); margin: 32px auto 56px; }
@@ -93,6 +95,7 @@
       .site-header { height: 62px; }
       .site-header__inner { width: calc(100% - 32px); }
       .site-brand { font-size: 20px; }
+      .site-page-name { margin-left: 10px; font-size: 13px; }
       .site-menu { top: 54px; right: 16px; }
       main { margin-top: 20px; }
     }
@@ -102,22 +105,26 @@
   <header class="site-header">
     <div class="site-header__inner">
       <a class="site-brand" href="/">防災アプリ</a>
+      <span class="site-page-name">{% block page_name %}防災アプリ{% endblock %}</span>
       <button id="menuToggle" class="menu-toggle" type="button" aria-label="メニューを開く" aria-expanded="false" aria-controls="siteMenu">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2.4" stroke-linecap="square" />
         </svg>
       </button>
       <nav id="siteMenu" class="site-menu" aria-label="メインメニュー" hidden>
-        <a href="/">ホーム</a>
-        <a href="/shelter_search">避難所検索</a>
-        <a href="/shelter_register">避難所登録</a>
-        <a href="/board">指示・発信ボード</a>
+        <a href="/" {% if request.endpoint == 'index' %}aria-current="page"{% endif %}>ホーム</a>
+        <a href="/shelter_search" {% if request.endpoint == 'shelter_search' %}aria-current="page"{% endif %}>避難所検索</a>
+        <a href="/all_shelters" {% if request.endpoint in ('all_shelters', 'search_results') %}aria-current="page"{% endif %}>全避難所一覧</a>
+        {% if session.logged_in %}
+          <a href="/shelter_management" {% if request.endpoint in ('shelter_management', 'shelter_register', 'edit_shelter') %}aria-current="page"{% endif %}>避難所管理</a>
+          <a href="/board" {% if request.endpoint == 'board' %}aria-current="page"{% endif %}>指示・発信ボード</a>
+        {% endif %}
         {% if session.logged_in %}
           <span class="site-menu__status">ログイン中{% if session.username %}（{{ session.username }}）{% endif %}</span>
           <a href="/logout">ログアウト</a>
         {% else %}
           <span class="site-menu__status">未ログイン</span>
-          <a href="/login">ログイン</a>
+          <a href="/login" {% if request.endpoint == 'login' %}aria-current="page"{% endif %}>管理者ログイン</a>
         {% endif %}
       </nav>
     </div>
@@ -135,6 +142,15 @@
       menuToggle.setAttribute('aria-expanded', String(!isExpanded));
       menuToggle.setAttribute('aria-label', isExpanded ? 'メニューを開く' : 'メニューを閉じる');
       siteMenu.hidden = isExpanded;
+    });
+
+    menuToggle.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && menuToggle.getAttribute('aria-expanded') === 'true') {
+        siteMenu.hidden = true;
+        menuToggle.setAttribute('aria-expanded', 'false');
+        menuToggle.setAttribute('aria-label', 'メニューを開く');
+        menuToggle.focus();
+      }
     });
 
     document.addEventListener('click', event => {

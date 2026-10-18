@@ -7,7 +7,7 @@
 <p>指示ボード・避難所登録の利用には管理者権限が必要です。</p>
 
 {% if error %}
-  <p>{{ message }}</p>
+  <p role="alert">{{ message }}</p>
 {% endif %}
 
 <form method="post">
@@ -17,8 +17,8 @@
   {% endif %}
 
   <p>
-    <label for="password">パスワード（「123」と入力してください）</label><br>
-    <input type="password" id="password" name="password" required>
+    <label for="password">管理者パスワード</label><br>
+    <input type="password" id="password" name="password" required autocomplete="current-password">
   </p>
 
   <p><button type="submit">ログイン</button></p>

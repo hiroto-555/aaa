@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}避難所管理 | 防災アプリ{% endblock %}
+{% block page_name %}避難所管理{% endblock %}
+
+{% block content %}
+<style>
+  .management-page { display: grid; gap: 20px; }
+  .management-page h1 { margin: 0; color: #18478f; font-size: 25px; }
+  .management-card { padding: 20px; border: 1px solid #e2eaf2; border-radius: 9px; background: #fff; }
+  .management-map { height: 430px; border: 1px solid #dce5ee; border-radius: 6px; }
+  .management-legend { display: flex; flex-wrap: wrap; gap: 7px 18px; margin: 12px 0; padding: 0; list-style: none; }
+  .management-legend li { display: flex; align-items: center; gap: 7px; }
+  .map-dot { width: 14px; height: 14px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px #6c7882; }
+  .map-dot--open { background: #278b55; }
+  .map-dot--closed { background: #79838d; }
+  .map-dot--unknown { background: #e0b531; }
+  .management-list { display: grid; gap: 8px; padding: 0; list-style: none; }
+  .management-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; padding: 12px; border: 1px solid #e6ebef; border-radius: 5px; }
+  .management-list a { display: inline-flex; min-height: 40px; align-items: center; color: #2456ad; font-weight: 600; }
+  .management-note { color: #647785; font-size: 13px; }
+  .management-page :focus-visible { outline: 3px solid #86b7f5; outline-offset: 2px; }
+  @media (max-width: 600px) { .management-card { padding: 14px; } .management-map { height: 330px; } }
+</style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<section class="management-page" aria-labelledby="management-title">
+  <h1 id="management-title">避難所管理</h1>
+  <p>地図上で位置を確認し、避難所ごとの情報を編集できます。座標が未登録または不正な施設は地図に表示していません（{{ unlocated_count }}件）。</p>
+  <section class="management-card" aria-labelledby="management-map-title">
+    <h2 id="management-map-title">{{ area_name }} 避難所マップ</h2>
+    <div id="managementMap" class="management-map" role="application" aria-label="{{ area_name }}の避難所管理地図"></div>
+    <ul class="management-legend" aria-label="マーカーの色">
+      <li><span class="map-dot map-dot--open" aria-hidden="true"></span>開設中</li>
+      <li><span class="map-dot map-dot--closed" aria-hidden="true"></span>未開設</li>
+      <li><span class="map-dot map-dot--unknown" aria-hidden="true"></span>状態未登録</li>
+    </ul>
+    <p class="management-note">位置検索と地図クリックは候補・座標欄を変更するだけです。永続化するには「変更を保存」を押してください。</p>
+  </section>
+  <section class="management-card" aria-labelledby="management-list-title">
+    <h2 id="management-list-title">登録済み避難所</h2>
+    <p><a href="{{ url_for('shelter_register') }}">避難所を新規登録</a></p>
+    {% if shelters %}
+    <ul class="management-list">
+      {% for shelter in shelters %}
+      <li>
+        <span><strong>{{ shelter.get('name') or '名称未登録' }}</strong> — {{ shelter.get('district') or shelter.get('address') or '地区・住所未登録' }}</span>
+        {% if shelter.get('id') is number and shelter.get('id') is not boolean %}
+        <a href="{{ url_for('edit_shelter', shelter_id=shelter.id) }}">情報・位置を編集</a>
+        {% else %}編集不可（ID未登録）{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>避難所はまだ登録されていません。</p>
+    {% endif %}
+  </section>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const element = document.getElementById('managementMap');
+  if (!window.L) {
+    element.setAttribute('role', 'status');
+    element.textContent = '地図を読み込めません。避難所情報の編集画面では緯度・経度を入力できます。';
+    return;
+  }
+  const map = L.map(element).setView({{ map_center|tojson }}, 11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    referrerPolicy: 'strict-origin-when-cross-origin'
+  }).addTo(map);
+  const colors = { green: '#278b55', gray: '#79838d', yellow: '#e0b531' };
+  const markers = [];
+  {{ mapped_shelters|tojson }}.forEach(shelter => {
+    const marker = L.circleMarker([shelter.latitude, shelter.longitude], {
+      radius: 8, color: '#fff', weight: 2, fillColor: colors[shelter.marker_color], fillOpacity: 1
+    }).addTo(map);
+    const popup = document.createElement('div');
+    [shelter.name, shelter.address, `開設状況：${shelter.status}`].forEach(text => {
+      const line = document.createElement('p');
+      line.textContent = text;
+      popup.appendChild(line);
+    });
+    marker.bindPopup(popup);
+    markers.push(marker);
+  });
+  if (markers.length > 1) map.fitBounds(L.featureGroup(markers).getBounds().pad(0.15));
+  else if (markers.length === 1) map.setView(markers[0].getLatLng(), 14);
+  map.whenReady(() => window.setTimeout(() => map.invalidateSize(), 0));
+});
+</script>
+{% endblock %}

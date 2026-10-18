@@ -1,50 +1,78 @@
 {% extends "base.html" %}
 
 {% block title %}ホーム | 防災アプリ{% endblock %}
+{% block page_name %}ホーム{% endblock %}
 
 {% block content %}
-{% if resident_notices %}
-<section class="resident-alerts" aria-labelledby="resident-alerts-title">
+<section class="home-intro" aria-labelledby="home-title">
+    <div>
+        <h1 id="home-title">青森市 防災・避難所案内</h1>
+        <p>地域の避難所、気象警報・注意報、住民向けのお知らせを確認できます。</p>
+    </div>
+    <nav class="home-quick-links" aria-label="主な機能">
+        <a href="{{ url_for('shelter_search') }}">避難所を検索</a>
+        <a href="{{ url_for('all_shelters') }}">全避難所一覧</a>
+        {% if is_logged_in %}
+        <a href="{{ url_for('shelter_register') }}">避難所を登録</a>
+        {% else %}
+        <a href="{{ url_for('login', next=url_for('shelter_register')) }}">管理者ログイン・避難所登録</a>
+        {% endif %}
+    </nav>
+</section>
+
+<section id="emergencySection" class="resident-alerts" aria-labelledby="resident-alerts-title">
     <div class="resident-alerts__heading">
         <h2 id="resident-alerts-title">緊急のお知らせ</h2>
         <button id="increaseNoticeText" type="button" aria-pressed="false" title="文字を大きくする">A＋</button>
     </div>
-    <div class="resident-alerts__list">
+    <div id="emergencyWeather" class="resident-alerts__list" aria-live="polite"></div>
+    <div id="emergencyNotices" class="resident-alerts__list">
+    {% if resident_notices %}
         {% for notice in resident_notices %}
         <article class="resident-alert{% if notice.urgency == '高' %} resident-alert--urgent{% endif %}">
+            <div class="resident-alert__meta"><span aria-hidden="true">📢</span><span>住民向け指示</span><span>{{ notice.status or '状態未登録' }}</span></div>
             <div class="resident-alert__meta">
                 {% if notice.urgency %}<span class="resident-alert__urgency">緊急度 {{ notice.urgency }}</span>{% endif %}
                 {% if notice.district %}<span>{{ notice.district }}</span>{% endif %}
-                {% if notice.created_at %}<time>{{ notice.created_at }}</time>{% endif %}
+                {% if notice.updated_at or notice.created_at %}<time>{{ notice.updated_at or notice.created_at }}</time>{% endif %}
             </div>
             <p>{{ notice.content }}</p>
             {% if notice.simple_content %}<p class="resident-alert__simple"><span>やさしい日本語</span>{{ notice.simple_content }}</p>{% endif %}
             {% if notice.shelter %}<p class="resident-alert__shelter">避難先：{{ notice.shelter }}</p>{% endif %}
+            <a class="resident-alert__details" href="#disasterInformation">災害情報一覧へ</a>
         </article>
         {% endfor %}
+    {% endif %}
     </div>
+    <p id="emergencyEmpty" class="emergency-empty"{% if resident_notices %} hidden{% endif %}>現在、有効な緊急情報はありません。気象情報を確認しています。</p>
 </section>
-{% endif %}
 
 <div class="home-dashboard">
     <section class="dashboard-panel map-panel" aria-labelledby="map-title">
         <div class="panel-heading">
             <span class="map-pin" aria-hidden="true"></span>
-            <h1 id="map-title">避難所マップ</h1>
+            <h2 id="map-title">{{ area_name }}周辺の地図</h2>
         </div>
-        <div id="shelterMap" role="application" aria-label="藤沢市周辺の地図"></div>
+        <div id="shelterMap" role="application" aria-label="{{ area_name }}周辺の地図"></div>
+        <ul class="map-legend" aria-label="避難所の開設状況">
+            <li><span class="map-legend__dot map-legend__dot--open" aria-hidden="true"></span>開設中</li>
+            <li><span class="map-legend__dot map-legend__dot--closed" aria-hidden="true"></span>未開設</li>
+            <li><span class="map-legend__dot map-legend__dot--unknown" aria-hidden="true"></span>状態未登録</li>
+        </ul>
+        <p id="unlocatedShelters" class="unlocated-shelters">{{ unlocated_count }}件の避難所は座標未登録または座標不正のため地図に表示していません。</p>
+        {% if is_logged_in %}<p><a href="{{ url_for('shelter_management') }}">避難所の場所・開設状況を管理</a></p>{% endif %}
     </section>
 
-    <section class="dashboard-panel weather-panel" aria-labelledby="weather-title">
+    <section id="weatherInformation" class="dashboard-panel weather-panel" aria-labelledby="weather-title">
         <div class="panel-heading panel-heading--weather">
             <div class="weather-title-group">
                 <span class="weather-icon" aria-hidden="true">☀</span>
-                <h2 id="weather-title"><span id="weatherAreaTitle">青森市</span> 気象警報・注意報</h2>
+                <h2 id="weather-title"><span id="weatherAreaTitle">{{ area_name }}</span> 気象警報・注意報</h2>
             </div>
             <span class="auto-update"><span aria-hidden="true">↻</span> 10分おき自動更新</span>
         </div>
         <div class="weather-body">
-            <p class="weather-region"><span class="map-pin map-pin--small" aria-hidden="true"></span><span id="weatherArea">青森市</span></p>
+            <p class="weather-region"><span class="map-pin map-pin--small" aria-hidden="true"></span><span id="weatherArea">{{ area_name }}</span></p>
             <div id="weatherStatus" class="weather-status" role="status" aria-live="polite">
                 <span class="status-mark" aria-hidden="true">…</span>
                 <p id="weatherStatusText">気象情報を読み込んでいます</p>
@@ -56,12 +84,40 @@
             </dl>
         </div>
     </section>
+
+    <section id="disasterInformation" class="dashboard-panel disaster-panel" aria-labelledby="disaster-title">
+        <div class="panel-heading disaster-heading">
+            <h2 id="disaster-title">災害情報一覧</h2>
+            <button id="refreshDisasterInformation" type="button" class="refresh-button">情報を更新</button>
+        </div>
+        <div class="disaster-controls">
+            <label for="disasterFilter">情報の種類</label>
+            <select id="disasterFilter">
+                <option value="すべて">すべて</option>
+                <option value="気象">気象</option>
+                <option value="避難">避難</option>
+                <option value="対応">対応</option>
+                <option value="道路">道路</option>
+            </select>
+            <p>自動更新：10分おき</p>
+        </div>
+        <p id="disasterUpdateStatus" class="disaster-update-status" role="status" aria-live="polite">災害情報を読み込んでいます</p>
+        <ul id="disasterSourceStatus" class="disaster-source-status"></ul>
+        <div id="disasterEventList" class="disaster-event-list"></div>
+    </section>
 </div>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <style>
+    .home-intro { display: grid; gap: 14px; margin-bottom: 24px; padding: 20px 22px; border: 1px solid #e1eaf4; border-radius: 10px; background: #f1f6fc; }
+    .home-intro h1 { margin: 0; color: var(--blue-dark); font-size: 23px; }
+    .home-intro p { margin: 5px 0 0; color: #586b7b; }
+    .home-quick-links { display: flex; flex-wrap: wrap; gap: 9px; }
+    .home-quick-links a { display: inline-flex; min-height: 42px; align-items: center; padding: 8px 14px; border-radius: 5px; background: var(--blue); color: #fff; font-weight: 700; text-decoration: none; }
+    .home-quick-links a:hover { background: var(--blue-dark); }
+    .home-quick-links a:focus-visible { outline: 3px solid #86b7f5; outline-offset: 2px; }
     .resident-alerts { margin-bottom: 24px; padding: 17px 19px; border: 1px solid #f0c7c1; border-radius: 8px; background: #fff9f7; }
     .resident-alerts__heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
     .resident-alerts__heading h2 { margin: 0; color: #a53d36; font-size: 19px; }
@@ -75,7 +131,9 @@
     .resident-alert__simple { padding-top: 8px; border-top: 1px solid #edf0f2; }
     .resident-alert__simple span { display: block; margin-bottom: 3px; color: var(--muted); font-size: 11px; }
     .resident-alert__shelter { color: #536675; font-size: 13px; }
+    .resident-alert__details { display: inline-block; margin-top: 8px; color: var(--blue-dark); font-size: 13px; font-weight: 600; }
     .resident-alerts--large .resident-alert { font-size: 1.25em; }
+    .emergency-empty { margin: 0; padding: 13px; border-radius: 5px; background: #fff; color: #536675; }
 
     .home-dashboard { display: grid; gap: 36px; }
 
@@ -130,6 +188,14 @@
         background: #fff;
         content: '';
     }
+
+    .map-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 13px 0 4px; padding: 0; list-style: none; }
+    .map-legend li { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; }
+    .map-legend__dot { width: 14px; height: 14px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px #74808a; }
+    .map-legend__dot--open { background: #278b55; }
+    .map-legend__dot--closed { background: #79838d; }
+    .map-legend__dot--unknown { background: #e0b531; }
+    .unlocated-shelters { margin: 7px 0 0; color: #687783; font-size: 13px; }
 
     #shelterMap {
         width: 100%;
@@ -237,7 +303,28 @@
     .weather-meta dt { min-width: 112px; }
     .weather-meta dd { margin: 0; }
 
+    .disaster-heading { justify-content: space-between; }
+    .refresh-button { min-height: 40px; padding: 7px 14px; border: 0; border-radius: 5px; background: var(--blue); color: #fff; cursor: pointer; font: inherit; font-weight: 600; }
+    .refresh-button:focus-visible, .disaster-controls select:focus-visible { outline: 3px solid #86b7f5; outline-offset: 2px; }
+    .disaster-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+    .disaster-controls label { font-weight: 600; }
+    .disaster-controls select { min-height: 40px; padding: 6px 10px; border: 1px solid #aab8c5; border-radius: 5px; background: #fff; font: inherit; }
+    .disaster-controls p, .disaster-update-status { margin: 0; color: #687783; font-size: 13px; }
+    .disaster-update-status { margin-top: 12px; }
+    .disaster-source-status { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 8px 0 12px; padding: 0; color: #687783; font-size: 12px; list-style: none; }
+    .disaster-event-list { display: grid; gap: 8px; }
+    .disaster-event { padding: 12px 14px; border: 1px solid #e5ebf0; border-left: 3px solid #6f98c8; border-radius: 5px; background: #fff; }
+    .disaster-event__meta { display: flex; flex-wrap: wrap; gap: 4px 12px; color: #637483; font-size: 12px; }
+    .disaster-event__kind { color: var(--blue-dark); font-weight: 700; }
+    .disaster-event__content { margin: 5px 0; white-space: pre-wrap; overflow-wrap: anywhere; font-weight: 600; }
+    .disaster-event__shelter { margin: 4px 0; font-size: 13px; }
+    .disaster-event__details { color: var(--blue-dark); font-size: 13px; }
+    .disaster-empty { margin: 0; padding: 18px; border: 1px dashed #cbd6df; border-radius: 6px; color: #637483; }
+
     @media (max-width: 640px) {
+        .home-intro { padding: 16px; }
+        .home-intro h1 { font-size: 20px; }
+        .home-quick-links { display: grid; grid-template-columns: 1fr; }
         .home-dashboard { gap: 22px; }
         .dashboard-panel { padding: 18px 16px 19px; border-radius: 10px; }
         .panel-heading h1, .panel-heading h2 { font-size: 18px; }
@@ -251,27 +338,53 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-        const map = L.map('shelterMap').setView([35.5, 139.65], 10.5);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
-        referrerPolicy: 'strict-origin-when-cross-origin'
-    }).addTo(map);
-        map.whenReady(() => window.setTimeout(() => map.invalidateSize(), 0));
-
-    function updateWeatherWarnings() {
-        fetch('/api/weather_warnings')
-                        .then(response => {
-                                if (!response.ok) throw new Error('Weather request failed');
-                                return response.json();
-            })
-            .then(renderWeather)
-            .catch(() => {
-                renderWeather({ error: true, area_name: '青森市', last_fetch_time: '取得失敗', report_time: '不明' });
+        const shelterMap = document.getElementById('shelterMap');
+        if (window.L) {
+            const map = L.map(shelterMap).setView({{ map_center|tojson }}, 11);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                referrerPolicy: 'strict-origin-when-cross-origin'
+            }).addTo(map);
+            const markers = [];
+            const markerColors = { green: '#278b55', gray: '#79838d', yellow: '#e0b531' };
+            {{ mapped_shelters|tojson }}.forEach(shelter => {
+                const marker = L.circleMarker(
+                    [shelter.latitude, shelter.longitude],
+                    { radius: 9, color: '#fff', weight: 2, fillColor: markerColors[shelter.marker_color], fillOpacity: 1 }
+                );
+                const popup = document.createElement('div');
+                [shelter.name, shelter.address, `開設状況：${shelter.status}`].forEach(text => {
+                    const line = document.createElement('p');
+                    line.textContent = text;
+                    popup.appendChild(line);
+                });
+                marker.bindPopup(popup).addTo(map);
+                markers.push(marker);
             });
+            if (markers.length > 1) {
+                map.fitBounds(L.featureGroup(markers).getBounds().pad(0.15));
+            } else if (markers.length === 1) {
+                map.setView(markers[0].getLatLng(), 14);
+            }
+            map.whenReady(() => window.setTimeout(() => map.invalidateSize(), 0));
+        } else {
+            shelterMap.setAttribute('role', 'status');
+            shelterMap.textContent = '地図を読み込めませんでした。避難所検索から施設をご確認ください。';
         }
 
-        function renderWeather(data) {
-                const areaName = data.area_name || '青森市';
+    const emergencyWeather = document.getElementById('emergencyWeather');
+    const emergencyNotices = document.getElementById('emergencyNotices');
+    const emergencyEmpty = document.getElementById('emergencyEmpty');
+    const eventList = document.getElementById('disasterEventList');
+    const disasterFilter = document.getElementById('disasterFilter');
+    const updateStatus = document.getElementById('disasterUpdateStatus');
+    const sourceStatus = document.getElementById('disasterSourceStatus');
+    const refreshButton = document.getElementById('refreshDisasterInformation');
+    let currentEvents = [];
+    let updateInProgress = false;
+
+    function renderWeather(data) {
+                const areaName = data.area_name || {{ area_name|tojson }};
                 document.getElementById('weatherArea').textContent = areaName;
                 document.getElementById('weatherAreaTitle').textContent = areaName;
                 document.getElementById('lastFetchTime').textContent = data.last_fetch_time || '不明';
@@ -304,10 +417,155 @@ document.addEventListener('DOMContentLoaded', function() {
                         statusText.textContent = 'データ取得済み：現在、警報・注意報は発表されていません';
                         warningList.hidden = true;
         }
-        }
+    }
 
-        updateWeatherWarnings();
-    setInterval(updateWeatherWarnings, 600000);
+    function renderEmergency(events, weatherError) {
+        emergencyWeather.replaceChildren();
+        emergencyNotices.replaceChildren();
+        if (weatherError) {
+            const failed = document.createElement('article');
+            failed.className = 'resident-alert resident-alert--urgent';
+            failed.textContent = '気象庁の情報を取得できませんでした。警報なしを意味するものではありません。';
+            emergencyWeather.appendChild(failed);
+        }
+        events.forEach(event => {
+            const isWeather = event.kind === '気象';
+            const article = document.createElement('article');
+            article.className = `resident-alert${isWeather || event.urgency === '高' ? ' resident-alert--urgent' : ''}`;
+            const meta = document.createElement('div');
+            meta.className = 'resident-alert__meta';
+            const kind = document.createElement('span');
+            kind.textContent = `${event.icon || '📢'} ${isWeather ? '気象警報・注意報' : '住民向け指示'}`;
+            const state = document.createElement('span');
+            state.textContent = event.status ? `状態：${event.status}` : '';
+            const time = document.createElement('time');
+            time.textContent = event.received_at || '日時不明';
+            meta.append(kind, state, time);
+            article.appendChild(meta);
+            if (event.urgency) {
+                const urgency = document.createElement('p');
+                urgency.className = 'resident-alert__urgency';
+                urgency.textContent = `緊急度 ${event.urgency}`;
+                article.appendChild(urgency);
+            }
+            if (event.district) {
+                const district = document.createElement('p');
+                district.textContent = event.district;
+                article.appendChild(district);
+            }
+            const content = document.createElement('p');
+            content.textContent = isWeather
+                ? `${event.source}：${event.content}（${event.status}）`
+                : event.content;
+            article.appendChild(content);
+            if (event.simple_content) {
+                const simple = document.createElement('p');
+                simple.className = 'resident-alert__simple';
+                simple.textContent = `やさしい日本語：${event.simple_content}`;
+                article.appendChild(simple);
+            }
+            if (event.shelter) {
+                const shelter = document.createElement('p');
+                shelter.className = 'resident-alert__shelter';
+                shelter.textContent = `避難先：${event.shelter}`;
+                article.appendChild(shelter);
+            }
+            const link = document.createElement('a');
+            link.className = 'resident-alert__details';
+            link.href = '#disasterInformation';
+            link.textContent = '災害情報一覧へ';
+            article.appendChild(link);
+            emergencyNotices.appendChild(article);
+        });
+        emergencyEmpty.hidden = events.length > 0 || weatherError;
+    }
+
+    function renderEvents() {
+        const selectedKind = disasterFilter.value;
+        eventList.replaceChildren();
+        const filtered = currentEvents.filter(event => selectedKind === 'すべて' || event.kind === selectedKind);
+        if (!filtered.length) {
+            const empty = document.createElement('p');
+            empty.className = 'disaster-empty';
+            empty.textContent = selectedKind === '道路'
+                ? '道路・現地情報の情報源は未接続です。確認済みの情報はありません。'
+                : '該当する災害情報はありません。';
+            eventList.appendChild(empty);
+            return;
+        }
+        filtered.forEach(event => {
+            const article = document.createElement('article');
+            article.className = 'disaster-event';
+            const meta = document.createElement('div');
+            meta.className = 'disaster-event__meta';
+            const kind = document.createElement('span');
+            kind.className = 'disaster-event__kind';
+            kind.textContent = `${event.icon} ${event.kind}`;
+            const time = document.createElement('time');
+            time.textContent = event.received_at;
+            const state = document.createElement('span');
+            state.textContent = `状態：${event.status}`;
+            const source = document.createElement('span');
+            source.textContent = `情報元：${event.source}`;
+            meta.append(kind, time, state, source);
+            const content = document.createElement('p');
+            content.className = 'disaster-event__content';
+            content.textContent = event.content;
+            article.append(meta, content);
+            if (event.shelter) {
+                const shelter = document.createElement('p');
+                shelter.className = 'disaster-event__shelter';
+                shelter.textContent = `避難先：${event.shelter}`;
+                article.appendChild(shelter);
+            }
+            const link = document.createElement('a');
+            link.className = 'disaster-event__details';
+            link.href = event.kind === '気象' ? '#weatherInformation' : '/board';
+            link.textContent = '詳細を見る';
+            article.appendChild(link);
+            eventList.appendChild(article);
+        });
+    }
+
+    async function updateDisasterInformation() {
+        if (updateInProgress) return;
+        updateInProgress = true;
+        refreshButton.disabled = true;
+        updateStatus.textContent = '災害情報を更新しています';
+        try {
+            const response = await fetch('/api/disaster_information');
+            if (!response.ok) throw new Error('災害情報を取得できませんでした');
+            const data = await response.json();
+            currentEvents = Array.isArray(data.events) ? data.events : [];
+            updateStatus.textContent = `最終更新：${data.updated_at || '日時不明'}`;
+            sourceStatus.replaceChildren();
+            Object.entries(data.sources || {}).forEach(([source, state]) => {
+                const item = document.createElement('li');
+                item.textContent = `${source}：${state}`;
+                sourceStatus.appendChild(item);
+            });
+            renderWeather({
+                area_name: {{ area_name|tojson }},
+                warnings: data.warnings,
+                error: data.weather_error,
+                last_fetch_time: data.weather_last_fetch_time,
+                report_time: data.weather_report_time
+            });
+            renderEmergency(currentEvents, Boolean(data.weather_error));
+            renderEvents();
+        } catch (error) {
+            updateStatus.textContent = '災害情報を更新できませんでした。前回取得した情報は保持しています。';
+            updateStatus.classList.add('weather-status--error');
+        } finally {
+            refreshButton.disabled = false;
+            updateInProgress = false;
+        }
+    }
+
+    disasterFilter.addEventListener('change', renderEvents);
+    refreshButton.addEventListener('click', updateDisasterInformation);
+    updateDisasterInformation();
+    setInterval(updateDisasterInformation, 600000);
 
     const noticeTextButton = document.getElementById('increaseNoticeText');
     if (noticeTextButton) {

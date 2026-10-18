@@ -1,20 +1,22 @@
 {% extends "base.html" %}
 
+{% block title %}{{ heading }} | 防災アプリ{% endblock %}
+
 {% block content %}
-<h2>検索結果</h2>
+<style>
+  .shelter-page { padding: 24px; border-radius: 12px; background: #f1f6fc; }
+  .shelter-page h1 { margin: 0; color: #18478f; font-size: 25px; }
+  .shelter-actions { margin: 12px 0 22px; }
+  .shelter-actions a { display: inline-flex; min-height: 44px; align-items: center; color: #2456ad; }
+  @media (max-width: 600px) { .shelter-page { padding: 16px; } }
+</style>
 
-{% if results %}
-  <ul>
-    {% for shelter in results %}
-    <li>{{ shelter.name }}</li>
-    {% endfor %}
-  </ul>
-{% else %}
-  <p>該当する避難所が見つかりませんでした</p>
-{% endif %}
+<section class="shelter-page" aria-labelledby="shelter-list-title">
+  <h1 id="shelter-list-title">{{ heading }}</h1>
+  <p class="shelter-actions"><a href="{{ url_for('shelter_search', q=options.get('q', ''), district=options.get('district', ''), disaster=options.get('disaster', ''), pet='1' if options.get('pet') else '', wheelchair='1' if options.get('wheelchair') else '', parking='1' if options.get('parking') else '') }}">避難所検索へ戻る</a></p>
 
-<p>
-  <a href="/shelter_search">検索画面に戻る</a> |
-  <a href="/">トップページへ戻る</a>
-</p>
+  {% with return_to='search_results' %}
+    {% include '_shelter_results_table.html' %}
+  {% endwith %}
+</section>
 {% endblock %}
